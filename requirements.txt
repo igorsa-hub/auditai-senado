@@ -1,0 +1,9 @@
+# AuditAI Senado - dependências da etapa N1 (análise exploratória e preparação)
+# Versões usadas na execução registrada no notebook (Python 3.11)
+pandas==3.0.2
+pyarrow==25.0.1
+numpy==2.4.4
+matplotlib==3.10.9
+ijson==3.5.1
+nltk==3.10.3
+jupyter==1.1.1

@@ -1,0 +1,120 @@
+{
+  "n_discursos": 100667,
+  "data_min": "1980-12-05",
+  "data_max": "2024-03-07",
+  "n_autores": 486,
+  "n_partidos_brutos": 61,
+  "palavras_autoral_total": 107127360,
+  "n_datas_atipicas": 2,
+  "n_1994": 414,
+  "n_2024": 258,
+  "media_ano_1995_2023": 3448.0344827586205,
+  "ano_min_count": 2020,
+  "min_count": 849,
+  "ano_max_count": 2005,
+  "max_count": 5375,
+  "n_vazios": 9979,
+  "pct_vazios": 0.0991288108317522,
+  "pct_vazios_com_presidencial": 0.6749173263854094,
+  "n_textos_duplicados": 380,
+  "n_autor_externos": 629,
+  "n_autores_externos": 35,
+  "n_partidos_norm": 42,
+  "n_autores_com_texto": 481,
+  "mediana_disc_autor": 81.0,
+  "n_top10pct": 49,
+  "share_top10pct": 0.473458450952717,
+  "max_disc_autor": 3055,
+  "pal_mediana": 978.0,
+  "pal_media": 1181.2738179251942,
+  "pal_p25": 442.0,
+  "pal_p75": 1649.0,
+  "pal_p99": 4567.390000000014,
+  "pal_max": 29586,
+  "n_menos30": 1481,
+  "pct_palavras_autoral": 81.9,
+  "pct_palavras_apartes": 14.2,
+  "pct_palavras_presidencial": 3.1,
+  "pct_palavras_externos": 0.8,
+  "temas": [
+    {
+      "tema": "Violência contra a mulher",
+      "expressão exata": 815,
+      "termos relacionados": 1708,
+      "acréscimo (%)": 109.6,
+      "% do corpus (relacionados)": 1.9
+    },
+    {
+      "tema": "Meio ambiente",
+      "expressão exata": 7221,
+      "termos relacionados": 9379,
+      "acréscimo (%)": 29.9,
+      "% do corpus (relacionados)": 10.3
+    },
+    {
+      "tema": "Inteligência artificial",
+      "expressão exata": 75,
+      "termos relacionados": 75,
+      "acréscimo (%)": 0.0,
+      "% do corpus (relacionados)": 0.1
+    },
+    {
+      "tema": "Educação",
+      "expressão exata": 21240,
+      "termos relacionados": 31626,
+      "acréscimo (%)": 48.9,
+      "% do corpus (relacionados)": 34.9
+    },
+    {
+      "tema": "Saúde",
+      "expressão exata": 23451,
+      "termos relacionados": 26729,
+      "acréscimo (%)": 14.0,
+      "% do corpus (relacionados)": 29.5
+    }
+  ],
+  "anos_fem_supera_vcm": [
+    2020,
+    2023
+  ],
+  "primeiro_ano_feminicidio": 2013,
+  "fem_2023": 1.5357502517623363,
+  "ia_2023": 0.7552870090634441,
+  "ia_2018": 0.2007024586051179,
+  "vcm_2023": 1.1329305135951662,
+  "n_disc_vcm_relacionados": 1708,
+  "n_autores_vcm": 211,
+  "n_alterados_limpeza": 1242,
+  "n_final_discursos": 89017,
+  "n_final_autores": 481,
+  "relatorio_filtros": [
+    {
+      "etapa": "Registros originais",
+      "discursos_restantes": 100667,
+      "removidos": 0
+    },
+    {
+      "etapa": "Remove texto autoral vazio",
+      "discursos_restantes": 90688,
+      "removidos": 9979
+    },
+    {
+      "etapa": "Remove textos autorais duplicados",
+      "discursos_restantes": 90303,
+      "removidos": 385
+    },
+    {
+      "etapa": "Remove discursos com menos de 30 palavras",
+      "discursos_restantes": 89017,
+      "removidos": 1286
+    }
+  ],
+  "final_data_min": "1994-01-03",
+  "final_data_max": "2024-03-07",
+  "n_trechos": 558569,
+  "trechos_por_disc_mediana": 5.0,
+  "trecho_pal_mediana": 235.0,
+  "trecho_pal_p05": 112.0,
+  "trecho_pal_max": 250,
+  "pct_disc_1_trecho": 0.14092813732208453
+}

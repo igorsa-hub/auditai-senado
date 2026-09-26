@@ -1,0 +1,5 @@
+etapa,discursos_restantes,removidos
+Registros originais,100667,0
+Remove texto autoral vazio,90688,9979
+Remove textos autorais duplicados,90303,385
+Remove discursos com menos de 30 palavras,89017,1286

@@ -7,8 +7,6 @@ Repositório: <https://github.com/igorsa-hub/auditai-senado>
 
 | Integrante | RA | E-mail |
 |---|---|---|
-| Andrey Bezerra Virgínio dos Santos | 10420696 | 10420696@mackenzista.com.br |
-| Igor Silva Araujo | 10428505 | 10428505@mackenzista.com.br |
 | Julia Vitória Bomfim do Nascimento | 10425604 | 10425604@mackenzista.com.br |
 | William Saran dos Santos Junior | 10420128 | 10420128@mackenzista.com.br |
 
@@ -27,10 +25,10 @@ O Senado Federal publica dezenas de milhares de discursos, mas o volume torna di
 | E1 Aquisição e caracterização do dataset | N1 | concluída |
 | E2 Análise exploratória | N1 | concluída |
 | E3 Preparação (limpeza, filtros, segmentação em trechos) | N1 | concluída |
-| E4 Indexação (BM25 + vetorial) | N2 | planejada |
-| E5 Agente com LLM + RAG | N2 | planejada |
-| E6 Interface web | N2 | planejada |
-| E7 Avaliação (Recall@k, MRR, nDCG@10, fidelidade) | N2 | planejada |
+| E4 Indexação (BM25 + vetorial) | N2 | concluída (notebook 03) |
+| E5 Agente: ferramentas de recuperação e agrupamento por parlamentar | N2 | concluída (notebook 03); camada de LLM + RAG **não implementada** |
+| E6 Interface web | N2 | **não implementada** |
+| E7 Avaliação (classificação 10-fold; P@k, nDCG@10, MAP, MRR) | N2 | concluída como piloto com rótulos fracos (notebooks 02 e 03) |
 
 ## Estrutura do repositório
 
@@ -38,7 +36,8 @@ O Senado Federal publica dezenas de milhares de discursos, mas o volume torna di
 auditai-senado/
 ├── artigo/
 │   ├── artigo_parcial_AuditAI_Senado.pdf     # artigo parcial (N1), template SBC
-│   └── latex/                                # fonte LaTeX, template SBC, figuras e referências
+│   ├── artigo_final_AuditAI_Senado.pdf       # artigo final (N2), template SBC
+│   └── latex/                                # artigo_parcial.tex, artigo_final.tex (N2), template SBC, figuras e referências
 ├── dataset/
 │   ├── README.md                             # descrição do dataset, licença e como obtê-lo
 │   └── amostra/                              # amostras dos dados preparados (CSV)
@@ -46,14 +45,25 @@ auditai-senado/
 │   ├── raw/                                  # partidos.json e externos.json (fsdb_lite.json: baixar do Kaggle)
 │   └── processed/                            # bases preparadas (geradas pelo notebook; não versionadas)
 ├── notebooks/
-│   └── 01_analise_exploratoria_preparacao.ipynb   # EDA + preparação, executado com resultados
+│   ├── 01_analise_exploratoria_preparacao.ipynb   # N1: EDA + preparação
+│   ├── 02_experimento_classificacao.ipynb         # N2: 7 classificadores, CV de 10 folds por autor
+│   └── 03_experimento_recuperacao.ipynb           # N2: BM25 x densa (E5) x híbrida (RRF) + ferramentas do agente
+├── estudos/
+│   └── cancer_mama_parteIII/                 # material de estudo da disciplina (Mammographic Mass), não faz parte do projeto
+├── docs/
+│   └── Rubrica_IA_Parte3_N2_20262.docx       # rubrica de avaliação da N2
 ├── src/
 │   ├── carregamento.py                       # leitura do JSON em streaming (ijson)
-│   └── preparacao.py                         # limpeza, filtros e segmentação em trechos
+│   ├── preparacao.py                         # limpeza, filtros e segmentação em trechos
+│   ├── preparar_base.py                      # gera data/processed/discursos.parquet (E1-E3 em script)
+│   └── temas.py                              # temas, rótulos fracos e mascaramento dos termos
 ├── resultados/
-│   ├── figuras/                              # gráficos (PNG e PDF)
-│   ├── tabelas/                              # tabelas da análise (CSV)
-│   └── metricas.json                         # números citados no artigo
+│   ├── figuras/                              # gráficos (PNG e PDF); fig5 e fig6 são da N2
+│   ├── tabelas/                              # tabelas da análise exploratória (CSV)
+│   ├── classificacao/                        # resultados do experimento 1 (CSV e JSON)
+│   ├── recuperacao/                          # resultados do experimento 2 (CSV)
+│   ├── modelos/                              # melhor modelo de cada tema (joblib)
+│   └── metricas.json                         # números da N1 citados no artigo
 ├── requirements.txt
 └── README.md
 ```
@@ -64,7 +74,11 @@ auditai-senado/
 pip install -r requirements.txt
 python -c "import nltk; nltk.download('stopwords')"
 # baixe fsdb_lite.json do Kaggle para data/raw/ (ver dataset/README.md)
+# torch (CPU), se ainda não instalado: pip install torch --index-url https://download.pytorch.org/whl/cpu
 jupyter nbconvert --to notebook --execute --inplace notebooks/01_analise_exploratoria_preparacao.ipynb
+python src/preparar_base.py        # gera data/processed/discursos.parquet (~1 min), exigido pelos notebooks 02 e 03
+jupyter nbconvert --to notebook --execute --inplace notebooks/02_experimento_classificacao.ipynb   # ~12 min
+jupyter nbconvert --to notebook --execute --inplace notebooks/03_experimento_recuperacao.ipynb     # ~15 min na CPU (embeddings)
 ```
 
 A execução completa leva cerca de 5 minutos e usa até ~5 GB de RAM. Figuras, tabelas, `resultados/metricas.json` e as bases em `data/processed/` são regenerados.
@@ -80,6 +94,17 @@ A execução completa leva cerca de 5 minutos e usa até ~5 GB de RAM. Figuras, 
 | Discursos por ano | Evolução de termos |
 |---|---|
 | ![](resultados/figuras/fig1_discursos_por_ano.png) | ![](resultados/figuras/fig4_evolucao_termos.png) |
+
+## Principais resultados da N2
+
+Tarefa com **rótulos fracos** (termos do tema) e os **termos removidos** do texto, para medir o sinal além da palavra literal.
+
+| Experimento 1 (teste, autores não vistos) | F1 | Precisão | Revocação | AUC |
+|---|---|---|---|---|
+| Violência contra a mulher (regressão logística) | 0,830 | 0,768 | 0,902 | 0,965 |
+| Meio ambiente (regressão logística) | 0,707 | 0,638 | 0,793 | 0,909 |
+
+Experimento 2 (10 consultas, nDCG@10 médio): **densa 0,98**, híbrida 0,92, BM25 com termos removidos 0,77. A busca densa supera o BM25 sobretudo em meio ambiente; a híbrida (RRF) **não** superou a densa. **Limitações:** rótulos fracos, 10 consultas, amostra de 3.000 discursos, sem julgamento humano, sem camada de LLM e sem interface web. Detalhes no artigo final (`artigo/latex/artigo_final.tex`).
 
 ## Licença dos dados
 

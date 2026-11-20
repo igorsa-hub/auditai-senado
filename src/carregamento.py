@@ -8,8 +8,6 @@ Instituição: Universidade Presbiteriana Mackenzie - Faculdade de Computação
 Professor : Prof. Dr. Ivan Carlos Alcântara de Oliveira
 
 Integrantes (nome - RA - e-mail):
-  - Andrey Bezerra Virgínio dos Santos - 10420696 - 10420696@mackenzista.com.br
-  - Igor Silva Araujo                  - 10428505 - 10428505@mackenzista.com.br
   - Julia Vitória Bomfim do Nascimento - 10425604 - 10425604@mackenzista.com.br
   - William Saran dos Santos Junior    - 10420128 - 10420128@mackenzista.com.br
 

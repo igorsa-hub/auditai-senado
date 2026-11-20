@@ -1,0 +1,41 @@
+tema,consulta,metodo,P@10,P@50,nDCG@10,MAP,MRR
+Violência contra a mulher,violência contra a mulher,BM25 (corpus mascarado),1.0,0.98,1.0,0.6960112220842932,1.0
+Violência contra a mulher,violência contra a mulher,Densa (E5-small),1.0,0.98,1.0,0.7413267804789986,1.0
+Violência contra a mulher,violência contra a mulher,Híbrida RRF,1.0,1.0,1.0,0.7566135629551028,1.0
+Violência contra a mulher,violência contra a mulher,BM25 sem máscara (teto lexical),1.0,1.0,1.0,0.8344460970126847,1.0
+Violência contra a mulher,feminicídio e agressão a mulheres,BM25 (corpus mascarado),1.0,0.68,1.0,0.5760424013182024,1.0
+Violência contra a mulher,feminicídio e agressão a mulheres,Densa (E5-small),1.0,0.96,1.0,0.7285408513804338,1.0
+Violência contra a mulher,feminicídio e agressão a mulheres,Híbrida RRF,1.0,1.0,1.0,0.6932461510803237,1.0
+Violência contra a mulher,feminicídio e agressão a mulheres,BM25 sem máscara (teto lexical),1.0,1.0,1.0,0.674435396420477,1.0
+Violência contra a mulher,mulheres vítimas de violência doméstica,BM25 (corpus mascarado),1.0,0.98,1.0,0.7099614889318583,1.0
+Violência contra a mulher,mulheres vítimas de violência doméstica,Densa (E5-small),1.0,0.98,1.0,0.7481048442641478,1.0
+Violência contra a mulher,mulheres vítimas de violência doméstica,Híbrida RRF,1.0,1.0,1.0,0.7674104295771852,1.0
+Violência contra a mulher,mulheres vítimas de violência doméstica,BM25 sem máscara (teto lexical),1.0,1.0,1.0,0.8376065428363972,1.0
+Violência contra a mulher,lei Maria da Penha e medidas de proteção às mulheres,BM25 (corpus mascarado),0.9,0.86,0.9337457765456111,0.5403301341461764,1.0
+Violência contra a mulher,lei Maria da Penha e medidas de proteção às mulheres,Densa (E5-small),1.0,0.94,1.0,0.717263140594304,1.0
+Violência contra a mulher,lei Maria da Penha e medidas de proteção às mulheres,Híbrida RRF,1.0,0.96,1.0,0.6763106647374022,1.0
+Violência contra a mulher,lei Maria da Penha e medidas de proteção às mulheres,BM25 sem máscara (teto lexical),1.0,1.0,1.0,0.7251267832531798,1.0
+Violência contra a mulher,combate à violência de gênero,BM25 (corpus mascarado),1.0,0.88,1.0,0.564015269796158,1.0
+Violência contra a mulher,combate à violência de gênero,Densa (E5-small),0.9,0.96,0.9148568823583791,0.7068508940948105,1.0
+Violência contra a mulher,combate à violência de gênero,Híbrida RRF,0.9,0.94,0.9305687780632229,0.6804386404363165,1.0
+Violência contra a mulher,combate à violência de gênero,BM25 sem máscara (teto lexical),1.0,0.92,1.0,0.6752490615500143,1.0
+Meio ambiente,meio ambiente,BM25 (corpus mascarado),0.2,0.24,0.14465249243306438,0.16666602738709527,0.16666666666666666
+Meio ambiente,meio ambiente,Densa (E5-small),1.0,0.8,1.0,0.5123430080467275,1.0
+Meio ambiente,meio ambiente,Híbrida RRF,0.6,0.48,0.706583601726363,0.3400390989794659,1.0
+Meio ambiente,meio ambiente,BM25 sem máscara (teto lexical),1.0,1.0,1.0,0.7942865476507123,1.0
+Meio ambiente,desmatamento e queimadas na Amazônia,BM25 (corpus mascarado),0.7,0.64,0.713308065210993,0.28605054020298276,1.0
+Meio ambiente,desmatamento e queimadas na Amazônia,Densa (E5-small),1.0,0.68,1.0,0.40895769505626667,1.0
+Meio ambiente,desmatamento e queimadas na Amazônia,Híbrida RRF,0.9,0.74,0.88995411685096,0.4021393230460021,1.0
+Meio ambiente,desmatamento e queimadas na Amazônia,BM25 sem máscara (teto lexical),1.0,0.94,1.0,0.41240228345790003,1.0
+Meio ambiente,mudanças climáticas e aquecimento global,BM25 (corpus mascarado),0.4,0.26,0.5224955967919311,0.15913514977659143,1.0
+Meio ambiente,mudanças climáticas e aquecimento global,Densa (E5-small),0.9,0.68,0.9216017310213247,0.3523880241014088,1.0
+Meio ambiente,mudanças climáticas e aquecimento global,Híbrida RRF,0.8,0.46,0.8603818544462509,0.280928043636569,1.0
+Meio ambiente,mudanças climáticas e aquecimento global,BM25 sem máscara (teto lexical),1.0,0.88,1.0,0.2863716113794656,1.0
+Meio ambiente,preservação ambiental e desenvolvimento sustentável,BM25 (corpus mascarado),0.8,0.8,0.685119869332369,0.46269470941550245,0.5
+Meio ambiente,preservação ambiental e desenvolvimento sustentável,Densa (E5-small),1.0,0.76,1.0,0.47738406076004253,1.0
+Meio ambiente,preservação ambiental e desenvolvimento sustentável,Híbrida RRF,0.9,0.86,0.9363792118010483,0.5177406665942934,1.0
+Meio ambiente,preservação ambiental e desenvolvimento sustentável,BM25 sem máscara (teto lexical),0.8,0.86,0.7104770117651427,0.5733584622696715,0.5
+Meio ambiente,proteção do meio ambiente e legislação ambiental,BM25 (corpus mascarado),0.6,0.54,0.6867151830982592,0.2922476395309943,1.0
+Meio ambiente,proteção do meio ambiente e legislação ambiental,Densa (E5-small),1.0,0.64,1.0,0.39917883090528183,1.0
+Meio ambiente,proteção do meio ambiente e legislação ambiental,Híbrida RRF,0.9,0.6,0.88995411685096,0.36983259658415535,1.0
+Meio ambiente,proteção do meio ambiente e legislação ambiental,BM25 sem máscara (teto lexical),1.0,0.94,1.0,0.6725860799804266,1.0

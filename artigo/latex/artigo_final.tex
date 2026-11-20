@@ -1,0 +1,787 @@
+% =============================================================================
+% Projeto : AuditAI Senado: Transparência e Análise Parlamentar com IA
+% Arquivo : artigo/latex/artigo_final.tex
+% Síntese : Artigo final (N2) no template SBC - proposta, dataset, preparação,
+%           experimentos de classificação e de recuperação, resultados e discussão.
+% Integrantes: Julia Vitória Bomfim do Nascimento (10425604),
+%   William Saran dos Santos Junior (10420128)
+% Histórico de alterações (data - autor - descrição):
+%   - 20/11/2026 - William Saran dos Santos Junior - Versão final (N2): experimentos,
+%     resultados, discussão, conclusão e atualização das seções de metodologia e ética.
+% =============================================================================
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{graphicx,url}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds}
+\urlstyle{same}
+
+% Endereço do repositório público do projeto
+\newcommand{\githuburl}{\url{https://github.com/igorsa-hub/auditai-senado}}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\sloppy
+
+\title{AuditAI Senado: Transparência e Análise\\ Parlamentar com IA}
+
+\author{Julia Vitória Bomfim do Nascimento\inst{1}, William Saran dos Santos Junior\inst{1}}
+
+\address{Faculdade de Computação e Informática -- Universidade Presbiteriana Mackenzie\\
+  São Paulo -- SP -- Brasil
+  \email{\{10425604, 10420128\}@mackenzista.com.br}
+  \\[4pt]{\footnotesize (e-mails na ordem dos autores; o prefixo de cada e-mail é o RA do integrante)}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  The Brazilian Federal Senate publishes tens of thousands of floor speeches, but their volume
+  makes it hard to find which senators address a given issue and where the evidence is. This
+  paper presents AuditAI Senado, whose retrieval core combines lexical (BM25), dense
+  (multilingual-E5) and hybrid (RRF) search over speech excerpts, with grouping by senator and
+  citation of excerpts as evidence. A public dataset with 100,667 speeches (1994--2024) was
+  characterized and prepared into 89,017 speeches and 558,569 excerpts. Two experiments used
+  weak topic labels with the topic terms removed from the text: seven classifiers compared with
+  10-fold cross-validation grouped by author (test F1 of 0.83 for violence against women and 0.71
+  for environment), and a retrieval comparison in which dense search reached nDCG@10 of 0.98 against
+  0.77 for BM25 on 10 queries. The LLM layer and the web interface remain future work.
+\end{abstract}
+
+\begin{resumo}
+  O Senado Federal publica dezenas de milhares de pronunciamentos, mas o volume dificulta
+  identificar quais parlamentares abordam um tema e onde estão as evidências. Este artigo
+  apresenta o AuditAI Senado, cujo núcleo de recuperação combina busca léxica (BM25), densa
+  (multilingual-E5) e híbrida (RRF) sobre trechos de discursos, com agrupamento por parlamentar e
+  citação dos trechos como evidência. Um \textit{dataset} público com 100.667 discursos
+  (1994--2024) foi caracterizado e preparado, resultando em 89.017 discursos e 558.569 trechos.
+  Dois experimentos usaram rótulos temáticos fracos, com os termos do tema removidos do texto:
+  a comparação de sete classificadores por validação cruzada de 10 folds agrupada por autor (F1 de
+  teste de 0,83 para violência contra a mulher e 0,71 para meio ambiente) e uma comparação de
+  recuperação em que a busca densa atingiu nDCG@10 de 0,98 contra 0,77 do BM25 em 10 consultas.
+  A camada de LLM e a interface web permanecem como trabalho futuro.
+\end{resumo}
+
+% -----------------------------------------------------------------------------
+\section{Introdução}
+
+\subsection{Contextualização}
+
+A Lei de Acesso à Informação \cite{brasil2011} consolidou no Brasil o princípio de que a
+informação produzida pelo Estado deve ser pública. No Poder Legislativo, isso se traduz na
+publicação, em portais oficiais, dos pronunciamentos feitos pelos parlamentares. O Senado Federal
+disponibiliza em seu portal o texto de dezenas de milhares desses discursos, cobrindo três
+décadas de atividade legislativa. Contudo, \emph{acesso} não é o mesmo que \emph{compreensão}: o
+conjunto de dados utilizado neste projeto reúne mais de cem mil registros e cerca de 107 milhões
+de palavras atribuídas aos autores dos discursos --- volume impossível de ser lido por um
+cidadão, jornalista ou pesquisador interessado em saber, por exemplo, quais senadores mais se
+dedicaram a debater violência contra a mulher, meio ambiente ou inteligência artificial, e o que
+efetivamente disseram.
+
+As ferramentas usuais de consulta dependem da ocorrência literal de palavras. Porém, um mesmo
+assunto pode ser expresso de muitas formas (``violência doméstica'', ``feminicídio'', ``Lei Maria
+da Penha'') e o vocabulário muda ao longo do tempo. O problema tratado neste trabalho é, portanto,
+o de \textbf{recuperar e organizar automaticamente, por significado, os discursos parlamentares
+relacionados a um tema, atribuindo-os corretamente aos seus autores e apresentando as evidências
+textuais}. O projeto insere-se no Objetivo de Desenvolvimento Sustentável 16 --- Paz, Justiça e
+Instituições Eficazes \cite{onu2015} ---, em particular nas metas de instituições transparentes
+(16.6) e de acesso público à informação (16.10).
+
+\subsection{Justificativa}
+
+Como os dados são textos em linguagem natural, o problema pertence ao campo do Processamento de
+Linguagem Natural (PLN). Métodos léxicos, como o BM25 \cite{robertson2009}, são eficientes, mas
+só encontram documentos que compartilham termos com a consulta. Representações vetoriais densas
+(\textit{embeddings}) produzidas por modelos baseados em \textit{Transformers}
+\cite{vaswani2017,reimers2019,wang2024e5} aproximam textos pelo significado e permitem a
+\textbf{busca semântica}. Para produzir respostas legíveis, um modelo de linguagem de grande
+escala (LLM) pode redigir a resposta; porém, LLMs podem gerar afirmações sem respaldo
+(``alucinações'') \cite{ji2023}. A arquitetura de geração aumentada por recuperação (RAG)
+\cite{lewis2020} mitiga esse risco ao condicionar a resposta aos trechos recuperados, que são
+exibidos como fonte. Por fim, perguntas como ``quais parlamentares mais abordaram X entre 2015 e
+2020?'' exigem uma sequência de operações (interpretar a intenção, buscar, filtrar, agrupar por
+parlamentar, selecionar evidências), o que justifica organizar a solução como um \textbf{agente
+inteligente} \cite{russell2022} capaz de escolher e encadear ferramentas \cite{yao2023}.
+A solução também distinguirá explicitamente \emph{mencionar} um tema de \emph{assumir uma posição}
+sobre ele, pois a ocorrência de um assunto num discurso não revela, por si só, o posicionamento
+político do parlamentar.
+
+\subsection{Motivação}
+
+Do ponto de vista social, a ferramenta reduz o custo de acompanhar a atuação discursiva dos
+representantes eleitos, apoiando o controle social, o jornalismo de dados e a pesquisa em ciência
+política --- área em que o uso de textos como dados já é consolidado, mas exige validação
+cuidadosa dos métodos automáticos \cite{grimmer2013}. Do ponto de vista acadêmico, o projeto
+permite aplicar, em um corpus real e extenso em português, conceitos centrais da disciplina: PLN,
+recuperação de informação, modelos de linguagem, RAG e agentes. Do ponto de vista prático, o
+problema é bem delimitado, os dados são públicos e o resultado --- um protótipo que responde com
+evidências verificáveis --- é demonstrável e avaliável.
+
+\subsection{Objetivo}
+
+O objetivo geral é \textbf{desenvolver um agente inteligente capaz de responder a perguntas em
+linguagem natural sobre os temas abordados nos discursos do Senado Federal, identificando os
+discursos semanticamente relacionados à consulta, agrupando os resultados por parlamentar e
+apresentando trechos que fundamentem a resposta, com ligação para a fonte oficial}. Os objetivos
+específicos são:
+(i) caracterizar e preparar a base textual de discursos (1º bimestre);
+(ii) implementar e comparar estratégias de recuperação léxica (BM25), densa (\textit{embeddings})
+e híbrida;
+(iii) integrar a recuperação a um agente com LLM em arquitetura RAG, que agrupe resultados por
+parlamentar e cite evidências;
+(iv) avaliar a qualidade da recuperação e a fidelidade das respostas; e
+(v) disponibilizar uma interface web para consulta. Na entrega final, os itens (i), (ii) e (iv,
+quanto à recuperação) foram cumpridos; do item (iii) foram implementadas as ferramentas de
+recuperação e de agrupamento por parlamentar, sem a camada de LLM, e o item (v) não foi
+realizado (Seção~\ref{sec:evolucao}).
+
+\subsection{Contribuições esperadas}
+
+Seguindo as dimensões de contribuição definidas na proposta, espera-se:
+(a) \emph{compreensão do problema} --- formalizar ``quem fala sobre o quê'' como uma tarefa de
+recuperação de trechos seguida de agregação por autor;
+(b) \emph{dados} --- uma base de discursos caracterizada, limpa e segmentada, com os problemas de
+qualidade documentados (entregue nesta etapa);
+(c) \emph{modelagem, experimentação e avaliação} --- comparação quantitativa entre sete
+classificadores e entre recuperação léxica, densa e híbrida, com rótulos fracos (entregue);
+(d) \emph{aplicação} --- ferramentas de recuperação e agrupamento por parlamentar funcionando em
+\textit{notebook} (entregue); agente com LLM e interface web ficam como trabalho futuro;
+(e) \emph{explicabilidade} --- resultados sempre acompanhados dos trechos e da URL oficial;
+(f) \emph{reprodutibilidade} --- código, notebooks e documentação em repositório público; e
+(g) \emph{análise crítica} --- discussão de vieses, limitações e riscos do uso de IA na análise de
+conteúdo político.
+
+% -----------------------------------------------------------------------------
+\section{Fundamentação Teórica}
+
+\subsection{Processamento de Linguagem Natural e recuperação de informação}
+
+O PLN estuda métodos computacionais para analisar e gerar linguagem humana
+\cite{jurafsky2025}. Em recuperação de informação, o modelo clássico representa documentos como
+``sacos de palavras'' ponderados, por exemplo pelo TF-IDF, que valoriza termos frequentes no
+documento e raros na coleção \cite{manning2008}. O BM25 refina essa ideia com saturação da
+frequência do termo e normalização pelo tamanho do documento, sendo até hoje uma linha de base
+forte \cite{robertson2009}. A principal limitação desses métodos é o \emph{descasamento de
+vocabulário}: documentos relevantes que não usam as palavras da consulta não são encontrados. A
+avaliação costuma usar métricas de ranqueamento como Recall@$k$, MRR (\textit{Mean Reciprocal
+Rank}) e nDCG (\textit{normalized Discounted Cumulative Gain}) \cite{manning2008}.
+
+\subsection{\textit{Embeddings} e busca semântica}
+
+A arquitetura \textit{Transformer}, baseada em mecanismos de atenção \cite{vaswani2017}, deu
+origem a modelos de linguagem pré-treinados que produzem representações contextuais do texto,
+inclusive para o português, como o BERTimbau \cite{souza2020}. Para comparar sentenças e
+parágrafos de forma eficiente, o Sentence-BERT \cite{reimers2019} treina redes siamesas que
+mapeiam cada texto para um vetor de dimensão fixa, de modo que textos com significado próximo
+fiquem próximos no espaço vetorial (medido, por exemplo, pela similaridade do cosseno). Modelos
+multilíngues treinados por aprendizado contrastivo, como a família multilingual-E5
+\cite{wang2024e5}, estendem essa capacidade a dezenas de idiomas. Na \emph{recuperação densa}
+\cite{karpukhin2020}, consulta e documentos são codificados como vetores e a busca retorna os
+vizinhos mais próximos da consulta em um índice vetorial. Como esses modelos têm limite de
+entrada (tipicamente 512 \textit{tokens}), documentos longos são divididos em trechos
+(\textit{chunks}).
+
+\subsection{Modelos de linguagem e geração aumentada por recuperação}
+
+LLMs geram texto fluente, mas seu conhecimento é limitado aos dados de treinamento e podem
+produzir conteúdo não fundamentado \cite{ji2023}. A abordagem RAG \cite{lewis2020} combina um
+\emph{recuperador}, que seleciona trechos relevantes de uma base externa, e um \emph{gerador}, que
+redige a resposta condicionada a esses trechos. Além de reduzir alucinações, a RAG torna a
+resposta auditável, pois as fontes utilizadas podem ser exibidas ao usuário --- requisito central
+em um sistema de transparência.
+
+\subsection{Classificação supervisionada e validação}
+
+Na classificação supervisionada, um modelo aprende a mapear atributos de entrada para uma classe
+a partir de exemplos rotulados. Foram comparados sete algoritmos clássicos disponíveis no
+\textit{scikit-learn} \cite{pedregosa2011}: \emph{k}-vizinhos mais próximos (KNN), árvore de
+decisão (CART), regressão logística, \textit{Naive Bayes}, máquina de vetores de suporte (SVM)
+\cite{cortes1995}, \textit{Random Forest} \cite{breiman2001} e AdaBoost \cite{freund1997}. A
+validação cruzada estratificada em \emph{k} dobras estima o desempenho em dados não vistos; com
+vários textos do mesmo autor, a divisão deve ser \emph{agrupada por autor}, para que o estilo
+individual não vaze entre treino e validação. A seleção de atributos e o ajuste de hiperparâmetros
+devem ocorrer apenas nos dados de treino de cada dobra (dentro de um \textit{pipeline}), e um
+conjunto de teste final fica reservado. Em classes desbalanceadas, a métrica principal é o F1 da
+classe positiva, acompanhado de precisão, revocação e AUC-ROC. Para combinar rankings de
+recuperadores distintos, a \textit{Reciprocal Rank Fusion} (RRF) soma $1/(k+r)$, em que $r$ é a posição do documento, de
+cada \textit{ranking} \cite{cormack2009}.
+
+\subsection{Agentes inteligentes}
+
+Um agente é uma entidade que percebe seu ambiente e age sobre ele para atingir objetivos
+\cite{russell2022}. Agentes baseados em LLM usam o modelo para decidir quais ações (ferramentas)
+executar; o padrão ReAct \cite{yao2023} intercala passos de raciocínio e de ação, observando o
+resultado de cada ação antes de decidir a próxima. No AuditAI Senado, o ambiente é a base de
+discursos, as percepções são a pergunta do usuário e os resultados das ferramentas, e as ações
+são operações como busca temática, aplicação de filtros (período, partido), agrupamento por
+parlamentar e recuperação de evidências.
+
+\subsection{Trabalhos relacionados}
+
+\cite{moreira2020} analisou mais de
+127 mil pronunciamentos da Câmara dos Deputados (1999--2014) com um modelo de agenda expressa (um
+modelo de tópicos) e mostrou que a ênfase temática dos deputados não é explicada principalmente
+pela dinâmica governo--oposição, mas por fatores como ideologia, gênero e popularidade. O
+trabalho evidencia o valor dos discursos como dado sobre a agenda parlamentar, mas produz
+análises agregadas, não respostas a perguntas com evidências.
+
+\cite{soriano2026} mapearam 453.280 discursos da Câmara (2003--2025) combinando estilometria,
+modelagem de tópicos com BERTopic sobre \textit{embeddings} multilíngues, agregação temática
+assistida por LLM e agrupamento semântico (UMAP e HDBSCAN), identificando 49 agrupamentos
+discursivos que atravessam fronteiras partidárias e mostrando a reatividade da agenda a crises. O
+estudo confirma que \textit{embeddings} capturam bem temas em discursos políticos em português,
+mas tem caráter exploratório e não supervisionado.
+
+\cite{vitorio2022} propuseram o Ulysses-RFSQ, que adiciona ao BM25 um bônus de
+\textit{relevance feedback} derivado de consultas semelhantes, em uma base de solicitações
+legislativas da Câmara dos Deputados, elevando o Recall@20 do BM25 em quase 3\%. O trabalho mostra
+que o BM25 é uma linha de base competitiva em textos legislativos em português.
+
+\cite{sivakumar2026} construíram um sistema RAG de perguntas e respostas sobre 3.500 documentos
+do Parlamento indiano (Lok Sabha, 2021--2024), com o modelo \textit{all-MiniLM-L6-v2}, índice FAISS,
+trechos de 256 a 512 \textit{tokens} com 15\% de sobreposição e recuperação dos 3 trechos mais
+similares. A acurácia factual subiu de 80\% (gerador sem recuperação) para 94\% com RAG; entre as
+principais causas de erro estavam o raciocínio em múltiplas etapas e o contexto recuperado
+incompleto --- o que reforça a importância de avaliar a recuperação separadamente.
+
+\cite{cunha2026} avaliaram de ponta a ponta um sistema RAG para documentos hospitalares em
+português, com o modelo multilingual-E5-small, trechos de cerca de 100 \textit{tokens}, fusão de
+rankings por \textit{Reciprocal Rank Fusion} (RRF) e comparação de geradores. O sistema obteve MRR
+de 0,786 e nDCG@10 de 0,816 em 192 pares de pergunta--resposta, com validação por especialistas.
+
+A Tabela~\ref{tab:relacionados} sintetiza os trabalhos e as decisões que eles fundamentam neste
+projeto. Nenhum deles trata do Senado Federal com respostas que \emph{agregam resultados por
+parlamentar} e apresentam as evidências; os trabalhos sobre discursos são descritivos, e os
+sistemas RAG respondem a perguntas factuais pontuais. Além disso, nenhum discute a atribuição de
+autoria por papel de fala --- aspecto que, como mostra a Seção~\ref{sec:eda}, afeta cerca de 18\%
+das palavras do corpus usado aqui.
+
+\begin{table}[ht]
+\centering
+\caption{Síntese dos trabalhos relacionados e decisões adotadas no AuditAI Senado.}
+\label{tab:relacionados}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{2.6cm}Y Y@{}}
+\toprule
+\textbf{Trabalho} & \textbf{Dados} & \textbf{Técnica e resultado} & \textbf{Decisão adotada} \\
+\midrule
+Moreira (2020) & 127 mil discursos, Câmara, 1999--2014 & Modelo de tópicos; ênfase temática ligada a ideologia, gênero, popularidade & Discursos como evidência da agenda; análise por parlamentar \\
+Soriano et al. (2026) & 453 mil discursos, Câmara, 2003--2025 & BERTopic, \textit{embeddings}, HDBSCAN; 49 agrupamentos & Uso de \textit{embeddings} multilíngues para temas em português \\
+Vitório et al. (2022) & Solicitações legislativas, Câmara & BM25 + \textit{relevance feedback}; +3\% Recall@20 & BM25 como linha de base léxica \\
+Sivakumar e Meenakshi (2026) & 3.500 docs., Lok Sabha & RAG (MiniLM + FAISS); acurácia 80\%$\rightarrow$94\% & Trechos com sobreposição; avaliar a recuperação \\
+da Cunha et al. (2026) & Docs. hospitalares em português & RAG (E5 + RRF); MRR 0,786, nDCG@10 0,816 & E5 multilíngue, fusão híbrida (RRF), MRR/nDCG \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\section{Metodologia e Resultados Esperados}
+
+\subsection{Abordagem e etapas}
+
+A solução segue o \textit{pipeline} da Figura~\ref{fig:pipeline}, organizado em sete etapas. As
+etapas E1 a E3 foram concluídas no 1º bimestre (Seções~\ref{sec:dataset} a
+\ref{sec:preparacao}). No 2º bimestre foram executadas a indexação (E4), as ferramentas de
+recuperação do agente (parte de E5) e a avaliação (E7), descritas na Seção~\ref{sec:experimentos};
+a camada de LLM de E5 e a interface web (E6) não foram implementadas.
+
+\begin{itemize}
+  \item \textbf{E1 -- Aquisição e caracterização}: obtenção do \textit{dataset} e documentação de
+  sua origem, estrutura e licença.
+  \item \textbf{E2 -- Análise exploratória}: cobertura temporal, qualidade, distribuições e
+  sondagem léxica dos temas-exemplo.
+  \item \textbf{E3 -- Preparação}: limpeza, filtros de qualidade e segmentação do texto autoral em
+  trechos com metadados.
+  \item \textbf{E4 -- Indexação}: índice léxico BM25 e índice vetorial com \textit{embeddings} de
+  um modelo multilíngue (candidato principal: multilingual-E5 \cite{wang2024e5}).
+  \item \textbf{E5 -- Agente}: um LLM interpreta a pergunta (tema, período, partido, tipo de
+  pergunta) e aciona as ferramentas \emph{buscar\_trechos}, \emph{filtrar},
+  \emph{agrupar\_por\_parlamentar} e \emph{obter\_evidências}; a resposta final é gerada em
+  arquitetura RAG, usando apenas os trechos recuperados e citando-os.
+  \item \textbf{E6 -- Interface}: aplicação web que exibe a resposta, o ranking de parlamentares
+  (contagem e proporção de discursos) e os trechos com ligação para a página oficial.
+  \item \textbf{E7 -- Avaliação}: protocolo descrito a seguir.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  node distance=4mm and 5mm,
+  box/.style={draw, rounded corners=2pt, align=center, font=\sffamily\scriptsize,
+              minimum height=9mm, text width=2.15cm, fill=white},
+  n1/.style={box, fill=gray!12},
+  arr/.style={-{Stealth[length=2mm]}, thick}]
+  \node[n1] (d) {E1 \textit{Dataset}\\Kaggle (JSON)};
+  \node[n1, right=of d] (e) {E2 Análise\\exploratória};
+  \node[n1, right=of e] (p) {E3 Limpeza, filtros\\e trechos};
+  \node[box, right=of p] (i) {E4 Índices BM25\\+ vetorial};
+  \node[box, below=9mm of i] (a) {E5 Agente\\(LLM + ferramentas)};
+  \node[box, left=of a] (g) {Geração RAG\\com citações};
+  \node[box, left=of g] (u) {E6 Interface\\web};
+  \node[box, left=of u] (v) {E7 Avaliação\\(métricas)};
+  \node[box, above=5mm of i, text width=2.4cm, fill=white, draw=gray] (q) {Pergunta do usuário};
+  \draw[arr] (d) -- (e); \draw[arr] (e) -- (p); \draw[arr] (p) -- (i);
+  \draw[arr] (q) -- (i);
+  \draw[arr] (i) -- node[right, font=\sffamily\tiny, align=left]{trechos +\\metadados} (a);
+  \draw[arr] (a) -- (g); \draw[arr] (g) -- (u); \draw[arr] (u) -- (v);
+\end{tikzpicture}
+\caption{Pipeline do AuditAI Senado. Em cinza, as etapas do 1º bimestre; E4 e E7 e as ferramentas de recuperação de E5 foram executadas no 2º bimestre; E6 e a camada de LLM de E5 ficam como trabalho futuro.}
+\label{fig:pipeline}
+\end{figure}
+
+\textbf{Protocolo de avaliação (E7).} O protocolo previsto na proposta (20 a 30 perguntas com
+julgamento de relevância por pelo menos dois integrantes) foi reduzido a um estudo piloto com
+\emph{rótulos fracos} e 10 consultas, descrito na Seção~\ref{sec:experimentos}, por falta de
+tempo para a anotação humana. Essa mudança é discutida na Seção~\ref{sec:evolucao}.
+
+\subsection{\textit{Dataset}: origem, conteúdo e licença}\label{sec:dataset}
+
+Utiliza-se o conjunto público \textit{Brazilian Senate Speeches} \cite{licolabres2024},
+disponível no Kaggle sob licença CC BY-NC-SA 4.0 (uso não comercial, com atribuição). Segundo o
+autor, os textos foram coletados do portal do Senado a partir das URLs fornecidas pela API de
+dados abertos, com raspagem de mais de 100 mil páginas. Foi usada a versão LITE
+(\texttt{fsdb\_lite.json}, 934,9~MB), além de dois arquivos auxiliares:
+\texttt{partidos.json} (656 senadores e respectivo partido) e \texttt{externos.json} (1.292
+nomes de oradores que não seriam senadores). A estrutura de cada registro é apresentada na
+Tabela~\ref{tab:estrutura}. Um aspecto decisivo é que o texto é separado por \emph{papel de
+fala}: somente o texto \textbf{Autoral} pertence ao autor do pronunciamento.
+
+\begin{table}[ht]
+\centering
+\caption{Estrutura de um registro do arquivo \texttt{fsdb\_lite.json}.}
+\label{tab:estrutura}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{4.0cm}Y@{}}
+\toprule
+\textbf{Campo} & \textbf{Conteúdo} \\
+\midrule
+chave do registro & código do pronunciamento no portal do Senado \\
+\texttt{URL}, \texttt{Data} & endereço da página oficial e data do discurso \\
+\texttt{Autor} & código, nome simplificado (minúsculas, sem acentos) e partido na data \\
+\texttt{Texto.Autoral} & parágrafos falados pelo autor do pronunciamento \\
+\texttt{Texto.Apartes} & intervenções de outros senadores durante o discurso \\
+\texttt{Texto.Presidencial} & falas de quem preside a sessão \\
+\texttt{Texto.Externos} & falas de não-senadores (ministros, convidados) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Os dados foram lidos em \textit{streaming} (biblioteca \texttt{ijson}), em lotes, para evitar
+carregar o JSON inteiro em memória. Não foi aplicada anonimização: os registros são atos públicos
+de agentes públicos no exercício do mandato, divulgados oficialmente em cumprimento à LAI
+\cite{brasil2011}. Ainda assim, adotou-se a minimização de dados: as falas de terceiros
+(\textit{Externos}) não são indexadas (ver Seção~\ref{sec:etica}).
+
+\subsection{Análise exploratória}\label{sec:eda}
+
+A análise, reproduzível no notebook do repositório, produziu os seguintes achados.
+
+\textbf{Cobertura temporal.} O \textit{dataset} contém 100.667 registros de 486 parlamentares.
+Embora a descrição mencione o período 1988--2024, a cobertura efetiva vai de 1994 a 7 de março
+de 2024 (Figura~\ref{fig:ano}): há apenas um registro de 1980 e um de 1988 (datas atípicas), e
+1994 (414 registros) e 2024 (258) são anos parciais. Nos anos completos, a média é de 3.448
+discursos por ano, com máximo em 2005 (5.375) e mínimo em 2020 (849), ano das sessões remotas da
+pandemia. Vários anos de eleições gerais (1998, 2002, 2010, 2014, 2018) estão entre os de menor
+produção. Assim, contagens temporais de menções precisarão ser normalizadas pelo volume anual.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.92\textwidth]{figuras/fig1_discursos_por_ano.pdf}
+\caption{Número de discursos por ano no \textit{dataset}.}
+\label{fig:ano}
+\end{figure}
+
+\textbf{Registros sem texto autoral.} 9.979 registros (9,9\%) não possuem texto autoral; em
+67,5\% deles há falas classificadas como \textit{Presidencial}, ou seja, o parlamentar presidia a
+sessão. Esses registros não podem ser atribuídos como discurso do parlamentar e foram excluídos
+da base de busca.
+
+\textbf{Composição por papel de fala.} Do total de palavras, 81,9\% são autorais, 14,2\% são
+apartes, 3,1\% são falas da Presidência e 0,8\% de oradores externos; 25,9\% dos registros contêm
+apartes. Indexar o texto completo atribuiria ao autor cerca de 18\% de palavras ditas por outras
+pessoas --- um erro de atribuição inaceitável num sistema de transparência. Por isso apenas o
+texto autoral é utilizado.
+
+\textbf{Autores e a lista de externos.} Ao testar o filtro sugerido pelo autor do
+\textit{dataset}, verificou-se que 629 registros, de 35 autores, seriam removidos por constarem
+em \texttt{externos.json}; a inspeção mostrou tratar-se de parlamentares que exerceram mandato no
+Senado (vários suplentes). Como o campo \texttt{Autor} vem do registro oficial, a lista
+\emph{não} foi usada como filtro. Também foram encontrados 380 textos autorais idênticos sob
+códigos distintos. Os identificadores são consistentes: cada código de autor corresponde a um
+único nome.
+
+\textbf{Concentração.} Entre os 481 autores com texto autoral, a mediana é de 81 discursos por
+autor, mas os 10\% mais ativos (49 senadores) respondem por 47,3\% dos discursos. Um ranking por
+contagem absoluta tenderia, portanto, a favorecer quem mais discursa em geral.
+
+\textbf{Partidos.} Há 61 rótulos de partido, reduzidos a 42 após corrigir apenas variações de
+grafia (espaços, ``PC DO B''/``PCdoB'', ``PODE''/``PODEMOS''). Renomeações históricas (PMDB$\rightarrow$MDB,
+PFL$\rightarrow$DEM$\rightarrow$UNIÃO etc.) foram mantidas, pois o campo registra o partido na data do discurso.
+
+\textbf{Tamanho dos discursos.} A distribuição do número de palavras autorais é assimétrica
+(Figura~\ref{fig:tamanho}): mediana de 978, quartis de 442 e 1.649 e máximo de 29.586 palavras. A
+cauda curta é dominada por manifestações procedimentais (``o partido orienta o voto sim''),
+enquanto discursos longos excedem o limite de entrada dos modelos de \textit{embeddings} --- o que
+motiva a segmentação em trechos. Os termos mais frequentes, mesmo após remover
+\textit{stopwords}, são de tratamento e procedimento (\textit{presidente}, \textit{senador},
+\textit{governo}), indicando que representações por frequência de palavras tendem a capturar o
+``ritual'' parlamentar e não o tema.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.92\textwidth]{figuras/fig3_tamanho_discursos.pdf}
+\caption{Distribuição do número de palavras do texto autoral (escala logarítmica).}
+\label{fig:tamanho}
+\end{figure}
+
+\textbf{Sondagem temática léxica.} Para os temas citados na proposta, comparou-se a busca pela
+expressão exata com a busca por um conjunto de termos relacionados definido pelo grupo, em texto
+minúsculo e sem acentos (Tabela~\ref{tab:temas}). Para violência contra a mulher, a expressão
+exata encontra 815 discursos, contra 1.708 com os termos relacionados (+109,6\%): a busca literal
+perde mais da metade dos discursos. Em temas amplos, como educação e saúde, os termos aparecem em
+cerca de 30\% a 35\% de todo o corpus, muitas vezes de passagem, de modo que a simples ocorrência
+não indica que o discurso trate do tema. ``Inteligência artificial'' é raro (75 discursos).
+
+\begin{table}[ht]
+\centering
+\caption{Discursos encontrados por busca léxica, por tema (base de 90.688 discursos com texto autoral).}
+\label{tab:temas}
+\footnotesize
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Tema} & \textbf{Expressão exata} & \textbf{Termos relacionados} & \textbf{Acréscimo} & \textbf{\% do corpus} \\
+\midrule
+Violência contra a mulher & 815    & 1.708  & +109,6\% & 1,9\% \\
+Meio ambiente             & 7.221  & 9.379  & +29,9\%  & 10,3\% \\
+Inteligência artificial   & 75     & 75     & 0,0\%    & 0,1\% \\
+Educação                  & 21.240 & 31.626 & +48,9\%  & 34,9\% \\
+Saúde                     & 23.451 & 26.729 & +14,0\%  & 29,5\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Figura~\ref{fig:termos} mostra a \emph{deriva de vocabulário}: ``feminicídio'' é praticamente
+ausente até 2012, cresce a partir de 2013 --- período de tramitação do projeto que resultou na Lei
+13.104/2015 --- e supera a expressão genérica em 2020 e 2023; ``inteligência artificial'' passa de
+0,20\% dos discursos em 2018 para 0,76\% em 2023 (o pico de 2020 decorre, em parte, do pequeno
+número de discursos naquele ano). Uma busca com vocabulário fixo fica, portanto, defasada ao longo
+de três décadas, o que reforça a necessidade de recuperação por significado.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.92\textwidth]{figuras/fig4_evolucao_termos.pdf}
+\caption{Percentual anual de discursos que mencionam cada expressão (1995--2023).}
+\label{fig:termos}
+\end{figure}
+
+\subsection{Preparação dos dados}\label{sec:preparacao}
+
+A preparação, implementada nos módulos \texttt{carregamento.py} e \texttt{preparacao.py}, teve
+quatro passos.
+(1) \emph{Limpeza}: normalização Unicode (NFC), remoção de rótulos de orador e de cabeçalhos que
+sobraram da página (``O SR. FULANO (PARTIDO -- UF) --'', ``Sem revisão do orador'') e de
+anotações taquigráficas, e normalização de espaços; 1.242 textos foram alterados. Acentos e
+\textit{stopwords} foram preservados no texto destinado aos \textit{embeddings}, pois os modelos
+de linguagem utilizam essa informação; a versão minúscula e sem acentos é usada apenas na busca
+léxica.
+(2) \emph{Normalização de siglas partidárias}, conforme descrito na Seção~\ref{sec:eda}.
+(3) \emph{Filtros de qualidade} (Tabela~\ref{tab:filtros}): remoção de registros sem texto
+autoral, de textos duplicados (por \textit{hash} MD5) e de discursos com menos de 30 palavras,
+limiar definido por inspeção manual da cauda curta. Os dois registros com datas atípicas não
+tinham texto autoral e foram eliminados no primeiro filtro.
+(4) \emph{Segmentação}: cada texto autoral foi dividido em trechos de até 250 palavras formados
+por sentenças inteiras, com sobreposição de até 50 palavras entre trechos vizinhos. A faixa é
+compatível com os trabalhos relacionados (100 a 512 \textit{tokens}, 15\% a 20\% de sobreposição)
+e tende a respeitar o limite de 512 \textit{tokens} de modelos como o multilingual-E5; a contagem
+exata em \textit{tokens} será verificada na E4 com o \textit{tokenizer} do modelo escolhido. Cada
+trecho herda código, data, autor, partido e URL do discurso, o que permite agrupar resultados por
+parlamentar e citar a fonte.
+
+\begin{table}[ht]
+\centering
+\caption{Efeito dos filtros de qualidade sobre a base.}
+\label{tab:filtros}
+\footnotesize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Etapa} & \textbf{Removidos} & \textbf{Restantes} \\
+\midrule
+Registros originais                        & --    & 100.667 \\
+Sem texto autoral                          & 9.979 & 90.688 \\
+Texto autoral duplicado                    & 385   & 90.303 \\
+Menos de 30 palavras (procedimentais)      & 1.286 & 89.017 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A base final contém \textbf{89.017 discursos} de 481 parlamentares (03/01/1994 a 07/03/2024),
+segmentados em \textbf{558.569 trechos}, com mediana de 5 trechos por discurso e de 235 palavras
+por trecho; 14,1\% dos discursos cabem em um único trecho.
+
+% -----------------------------------------------------------------------------
+\section{Experimentos e Resultados}\label{sec:experimentos}
+
+Foram realizados dois experimentos sobre a base preparada da Seção~\ref{sec:preparacao}, ambos
+reproduzíveis nos \textit{notebooks} 02 e 03 do repositório (sementes fixas, \texttt{random\_state}=7).
+
+\subsection{Rótulos fracos e mascaramento dos termos}
+
+Como não há rótulos temáticos oficiais, adotou-se um \emph{rótulo fraco}: um discurso é positivo
+para um tema se contém algum termo da lista da sondagem léxica (Seção~\ref{sec:eda}). Isso torna
+a tarefa circular para métodos literais. Por isso, \textbf{os termos do tema são removidos do
+texto de entrada} dos modelos (e do corpus de recuperação), mantendo-se apenas as consultas em
+linguagem natural. O experimento passa a medir quanto sinal temático existe \emph{além} das
+palavras literais --- justamente o que a busca semântica precisa explorar. Os temas são
+\emph{violência contra a mulher} (raro, 1,9\% do corpus) e \emph{meio ambiente} (amplo, 10,3\%).
+
+\subsection{Experimento 1: sete classificadores}
+
+\textbf{Desenho.} Para cada tema, formou-se uma amostra com os discursos positivos (até 3.000) e
+três vezes mais negativos sorteados: 6.872 discursos (1.718 positivos) para violência contra a
+mulher e 12.000 (3.000 positivos) para meio ambiente. Reservaram-se 20\% para teste final (1.364 e
+2.415 discursos), com divisão \emph{agrupada por autor}, de modo que nenhum senador aparece em
+desenvolvimento e teste. Nos 80\% restantes, aplicou-se validação cruzada estratificada de 10
+folds (também agrupada por autor), com os mesmos folds para todos os modelos. Cada modelo é um
+\textit{pipeline} com TF-IDF (até 30 mil termos, \textit{min\_df}=5), seleção de atributos por
+$\chi^2$ (2.000 termos) e o classificador, ajustados apenas no treino de cada fold. Foram
+comparados KNN (cosseno, $k$=5), CART, regressão logística, \textit{Naive Bayes} (variante
+\textit{Complement}, adequada a TF-IDF esparso), SVM (núcleo RBF), \textit{Random Forest} (200
+árvores) e AdaBoost (200 estimadores), além de um \textit{baseline} aleatório. Os dois melhores
+pelo F1 da validação cruzada tiveram os hiperparâmetros ajustados por busca em grade \emph{só nos
+dados de desenvolvimento}; o modelo final foi escolhido pela validação cruzada, não pelo teste.
+
+\textbf{Resultados.} A Tabela~\ref{tab:clf} traz o F1 da classe positiva. Todos os modelos superam
+em muito o \textit{baseline} (F1 de 0,25). A regressão logística e o SVM lideram nos dois temas,
+com diferenças pequenas entre si (dentro de um desvio-padrão da validação cruzada). Para violência
+contra a mulher, o modelo escolhido pela validação cruzada (regressão logística, $C$=1, 5.000
+atributos) obteve no teste F1 de 0,830, precisão de 0,768, revocação de 0,902 e AUC de 0,965; para
+meio ambiente (mesma configuração), F1 de 0,707, precisão de 0,638, revocação de 0,793 e AUC de
+0,909 (Figura~\ref{fig:clf}). O SVM ajustado teve, no teste de meio ambiente, F1 ligeiramente
+maior (0,720), mas isso não altera a escolha, que não pode usar o teste. O \textit{Random Forest}
+tem a maior precisão (0,91 e 0,88 na validação cruzada) e a menor revocação (0,72 e 0,43): é
+conservador, o que o torna pior em F1 num problema em que encontrar os discursos é o objetivo.
+
+\begin{table}[ht]
+\centering
+\caption{F1 da classe positiva: média $\pm$ desvio-padrão em 10 folds (VC) e no teste final reservado (T). A linha ``ajustado'' usa a busca em grade nos dois melhores modelos.}
+\label{tab:clf}
+\footnotesize
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & \multicolumn{2}{c}{\textbf{Violência c/ a mulher}} & \multicolumn{2}{c}{\textbf{Meio ambiente}} \\
+\textbf{Modelo} & \textbf{VC} & \textbf{T} & \textbf{VC} & \textbf{T} \\
+\midrule
+\textit{Baseline} aleatório & 0,259 $\pm$ 0,021 & 0,231 & 0,248 $\pm$ 0,027 & 0,262 \\
+KNN                 & 0,761 $\pm$ 0,023 & 0,771 & 0,592 $\pm$ 0,040 & 0,646 \\
+CART                & 0,732 $\pm$ 0,016 & 0,670 & 0,541 $\pm$ 0,025 & 0,549 \\
+Regressão logística & 0,827 $\pm$ 0,037 & 0,834 & 0,685 $\pm$ 0,026 & 0,708 \\
+\textit{Naive Bayes}& 0,758 $\pm$ 0,043 & 0,723 & 0,629 $\pm$ 0,057 & 0,672 \\
+SVM                 & 0,824 $\pm$ 0,035 & 0,825 & 0,687 $\pm$ 0,036 & 0,725 \\
+\textit{Random Forest} & 0,802 $\pm$ 0,037 & 0,798 & 0,571 $\pm$ 0,061 & 0,610 \\
+AdaBoost            & 0,812 $\pm$ 0,036 & 0,799 & 0,622 $\pm$ 0,050 & 0,667 \\
+\midrule
+Reg. logística (ajustado) & 0,830 & 0,830 & 0,693 & 0,707 \\
+SVM (ajustado)      & 0,829 & 0,822 & 0,692 & 0,720 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.95\textwidth]{figuras/fig5_classificacao_cv_roc.pdf}
+\caption{Distribuição do F1 nos 10 folds (esquerda) e curvas ROC no teste final (direita), por tema.}
+\label{fig:clf}
+\end{figure}
+
+\textbf{Análise dos erros.} Os termos de maior peso na regressão logística são coerentes com os
+temas: ``mulheres'', ``vítimas'' e ``proteção'' para violência contra a mulher; ``ambiental'',
+``Amazônia'', ``Ibama'' e ``floresta'' para meio ambiente. Também aparecem pistas que não são o
+tema, como ``senadora'', ``Marina'' e ``obrigada'': parte do sinal vem de \emph{quem fala}, o que
+é um viés do rótulo fraco e da divisão por autor não eliminar totalmente o estilo do gênero. A
+revocação cai nos períodos mais recentes (violência contra a mulher: 0,95 em 2004--2013 e 0,87 em
+2014--2024; meio ambiente: 0,82 e 0,74), compatível com a deriva de vocabulário, mas o número de
+positivos nos extremos é pequeno (11 em 1994--2003 para violência contra a mulher). Os falsos
+positivos de maior pontuação são, em geral, discursos de temas vizinhos (Previdência, resíduos
+sólidos, discriminação racial) ou que tratam do tema sem usar os termos da lista; parte deles pode
+ser, portanto, erro do rótulo fraco, e não do modelo.
+
+\subsection{Experimento 2: recuperação léxica, densa e híbrida}
+
+\textbf{Desenho.} Montou-se um corpus de avaliação de 3.000 discursos: 303 relevantes para
+violência contra a mulher, 351 para meio ambiente e 2.400 sem nenhum dos dois temas, segmentados
+em 19.667 trechos (até 250 palavras, sobreposição de 50). Os termos dos dois temas foram removidos
+do corpus, \emph{preservando os acentos}. Compararam-se: \textbf{BM25} (k1=1,5; b=0,75; texto
+minúsculo, sem acentos e sem \textit{stopwords}); \textbf{busca densa} com
+\textit{multilingual-E5-small} \cite{wang2024e5} (vetores normalizados; os trechos têm mediana de
+336 \textit{tokens} e máximo de 422, abaixo do limite de 512); e \textbf{híbrida} por RRF
+\cite{cormack2009} ($k$=60) sobre os \textit{rankings} de trechos dos dois métodos. Como
+referência, o BM25 também foi aplicado ao corpus \emph{sem máscara}, um teto lexical favorecido
+porque os rótulos vêm das mesmas palavras. O escore do discurso é o maior escore entre seus
+trechos. Foram usadas 5 consultas por tema, em linguagem natural (por exemplo, ``feminicídio e
+agressão a mulheres'' e ``mudanças climáticas e aquecimento global''), e as métricas P@10, P@50,
+nDCG@10, MAP e MRR.
+
+\textbf{Resultados.} A Tabela~\ref{tab:rec} e a Figura~\ref{fig:rec} mostram o resultado. Em
+\emph{meio ambiente}, a busca densa supera o BM25 sobre o corpus mascarado com folga (P@10 de 0,98
+contra 0,54; nDCG@10 de 0,98 contra 0,55); a pergunta ``meio ambiente'', sozinha, tem nDCG@10 de
+0,14 no BM25 e de 1,00 na busca densa. Em \emph{violência contra a mulher}, os métodos praticamente
+empatam no topo (nDCG@10 entre 0,98 e 0,99), mas a busca densa e a híbrida são melhores em P@50
+(0,96 e 0,98 contra 0,88) e em MAP (0,73 e 0,72 contra 0,62). Na média das 10 consultas, o
+nDCG@10 é de 0,98 (densa), 0,92 (híbrida) e 0,77 (BM25 mascarado); a densa supera o BM25
+mascarado em 6 das 10 consultas. A híbrida ficou \emph{abaixo} da densa em meio ambiente (nDCG@10
+de 0,86 contra 0,98), pois o RRF incorpora um BM25 fraco nesse tema; ela só foi melhor que a densa
+em P@50 e MAP de violência contra a mulher por margem pequena. A hipótese de que a híbrida seria a
+melhor estratégia, portanto, \emph{não se confirmou} neste estudo.
+
+\begin{table}[ht]
+\centering
+\caption{Recuperação por tema (média de 5 consultas). Corpus mascarado, exceto a última linha de cada tema (teto lexical, sem máscara).}
+\label{tab:rec}
+\footnotesize
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+\textbf{Tema} & \textbf{Método} & \textbf{P@10} & \textbf{P@50} & \textbf{nDCG@10} & \textbf{MAP} & \textbf{MRR} \\
+\midrule
+\multirow{4}{*}{Violência c/ a mulher}
+ & BM25              & 0,98 & 0,88 & 0,99 & 0,62 & 1,00 \\
+ & Densa (E5-small)  & 0,98 & 0,96 & 0,98 & 0,73 & 1,00 \\
+ & Híbrida (RRF)     & 0,98 & 0,98 & 0,99 & 0,72 & 1,00 \\
+ & BM25 sem máscara  & 1,00 & 0,98 & 1,00 & 0,75 & 1,00 \\
+\midrule
+\multirow{4}{*}{Meio ambiente}
+ & BM25              & 0,54 & 0,50 & 0,55 & 0,27 & 0,73 \\
+ & Densa (E5-small)  & 0,98 & 0,71 & 0,98 & 0,43 & 1,00 \\
+ & Híbrida (RRF)     & 0,82 & 0,63 & 0,86 & 0,38 & 1,00 \\
+ & BM25 sem máscara  & 0,96 & 0,92 & 0,94 & 0,55 & 0,90 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.95\textwidth]{figuras/fig6_recuperacao.pdf}
+\caption{nDCG@10 e MAP por tema e método de recuperação.}
+\label{fig:rec}
+\end{figure}
+
+\textbf{Ferramentas do agente.} As funções \emph{buscar\_trechos}, \emph{agrupar\_por\_parlamentar}
+e \emph{obter\_evidências} foram implementadas e aplicadas à pergunta ``quais parlamentares mais
+abordaram violência contra a mulher?'' com a busca híbrida: os 50 discursos mais bem ranqueados
+foram todos relevantes pelo rótulo fraco, e o agrupamento por parlamentar, com contagem, proporção
+e trechos com URL oficial, lista no topo Ana Rita e Paulo Paim. O topo de 8 parlamentares coincide
+em 4 com a linha de base léxica de contagem de menções. Os resultados são contagens de menções e
+\emph{não} indicam posicionamento.
+
+\section{Discussão}
+
+\textbf{Alcance dos objetivos.} A tarefa mascarada mostra que há sinal temático suficiente fora
+dos termos literais: classificadores simples chegam a F1 de 0,83 para um tema raro e a busca densa
+recupera discursos de meio ambiente que o BM25 perde quando o vocabulário muda. Isso sustenta a
+escolha de recuperação por significado feita na proposta. Em contrapartida, a vantagem não é
+uniforme: em violência contra a mulher, palavras como ``mulheres'' sobraram no texto mascarado e o
+BM25 manteve desempenho alto, de modo que a máscara é menos exigente nesse tema. Por isso, a
+comparação mede a robustez a perdas de vocabulário, e não substitui uma avaliação com julgamento
+humano.
+
+\textbf{Escolha de modelos.} A regressão logística, mais simples e rápida, empatou com o SVM e
+superou \textit{Random Forest} e AdaBoost em F1 --- coerente com a ideia de que, em texto esparso
+de alta dimensão, modelos lineares são fortes. Árvores únicas (CART) foram as piores. A decisão
+do artigo é usar a regressão logística como classificador de referência e a busca densa como
+recuperador principal.
+
+\textbf{Limitações.} (i) Os rótulos são fracos e derivados de listas de termos escolhidas pelo
+grupo; não são verdade de referência. (ii) O mascaramento remove os termos da lista, mas não
+palavras relacionadas. (iii) O estudo de recuperação usa 10 consultas e uma amostra de 3.000
+discursos (19.667 dos 558.569 trechos), sem julgamento humano, e o BM25 sem máscara é favorecido. (iv)
+Foi testado um único modelo denso, de porte pequeno. (v) Os classificadores usam pistas de gênero e
+de autor que não são o tema. (vi) Não há camada de LLM, logo a fidelidade das respostas geradas
+não foi avaliada. (vii) A relevância é medida por discurso, embora a recuperação seja por trecho.
+
+\subsection{Evolução da proposta e mudanças de escopo}\label{sec:evolucao}
+
+Em relação à proposta, (a) o período corrigido para 1994--2024 após a caracterização dos dados;
+(b) o protocolo de 20 a 30 perguntas com julgamento humano foi substituído por um piloto de 10
+consultas com rótulos fracos e mascaramento, o que torna os resultados indicativos; (c) a
+comparação de sete classificadores foi acrescentada como estudo de métodos clássicos de
+aprendizado de máquina sobre o mesmo corpus; (d) o agente com LLM e a interface web
+\emph{não foram implementados}, restando as ferramentas de recuperação e de agrupamento por
+parlamentar, demonstradas em \textit{notebook}. As contribuições efetivas são, portanto: a
+caracterização e preparação dos dados, a evidência experimental de que a recuperação densa é mais
+robusta ao vocabulário, e uma base de código reproduzível sobre a qual a camada de LLM pode ser
+construída.
+
+\section{Aspectos Éticos e Responsabilidade no Uso da IA}\label{sec:etica}
+
+Uma ferramenta que associa parlamentares a temas tem impacto potencial sobre a reputação de
+pessoas públicas e sobre o debate político. Os riscos identificados, bem como as medidas adotadas
+ou planejadas, estão na Tabela~\ref{tab:etica}, alinhados aos princípios de transparência,
+responsabilização e supervisão humana da recomendação da UNESCO sobre ética da IA
+\cite{unesco2021}. Os experimentos acrescentaram um risco concreto: os classificadores aprenderam
+pistas como ``senadora'' e nomes próprios, o que reforça a regra de não atribuir posicionamento nem
+pontuar parlamentares a partir do modelo.
+
+\begin{table}[ht]
+\centering
+\caption{Riscos éticos do AuditAI Senado e medidas de mitigação.}
+\label{tab:etica}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{3.1cm}YY@{}}
+\toprule
+\textbf{Risco} & \textbf{Onde aparece no projeto} & \textbf{Mitigação} \\
+\midrule
+Atribuição indevida de falas & 18\% das palavras de um registro são de outros oradores & Indexar só o texto autoral (adotado) \\
+Confundir menção com posição & Um discurso pode citar um tema para defendê-lo ou criticá-lo & Não inferir posicionamento; exibir o trecho e aviso explícito na interface \\
+Viés de volume e de cobertura & 10\% mais ativos concentram 47,3\% dos discursos; 9,9\% dos registros sem texto; 2020 atípico & Mostrar contagem \emph{e} proporção; declarar lacunas e período coberto \\
+Alucinação do LLM & Geração de respostas na etapa RAG & Responder só com trechos recuperados, citar a fonte, responder ``não encontrado'' quando não houver evidência \\
+Viés dos modelos e do texto & Transcrições antigas com erros de grafia; vieses de \textit{embeddings} e LLMs & Avaliação por tema e período; análise de erros na N2 \\
+Uso político seletivo & Recortes podem ser usados fora de contexto & Ligação para o discurso completo; sem notas ou ``pontuações'' de parlamentares \\
+Privacidade & Falas de cidadãos convidados (\textit{Externos}) & Minimização: falas de terceiros não indexadas; licença não comercial respeitada \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Quanto à privacidade, os dados são públicos e referem-se a atos oficiais; a LGPD admite o
+tratamento de dados de acesso público desde que respeitados a finalidade, a boa-fé e o interesse
+público que justificaram sua disponibilização \cite{brasil2018}. O propósito do projeto ---
+facilitar o controle social --- é coerente com essa finalidade. A responsabilidade pelas decisões
+de projeto é do grupo: código, dados derivados, parâmetros e limitações ficam documentados no
+repositório, e o sistema deve ser usado como ferramenta de apoio à consulta, sempre sujeita à
+verificação humana das fontes.
+
+\section{Conclusão}
+
+O trabalho caracterizou o conjunto de discursos do Senado, produziu uma base limpa de 89.017
+discursos e 558.569 trechos e executou dois experimentos controlados. Os resultados indicam que
+(i) classificadores simples identificam temas pelo contexto, mesmo sem os termos do tema, com F1
+de 0,83 (violência contra a mulher) e 0,71 (meio ambiente) em autores não vistos, e (ii) a busca
+densa com \textit{multilingual-E5-small} é mais robusta que o BM25 quando o vocabulário da consulta
+não aparece no texto (nDCG@10 médio de 0,98 contra 0,77), enquanto a combinação por RRF não
+superou a busca densa isolada. Esses resultados são indicativos, pois dependem de rótulos fracos,
+de 10 consultas e de uma amostra do corpus. Ficam como trabalho futuro: a anotação humana de
+relevância em 20 a 30 consultas, a indexação do corpus completo, a comparação com outros modelos
+densos e fusão ponderada, a camada de LLM em arquitetura RAG com avaliação de fidelidade, e a
+interface web.
+
+\subsection{Repositório GitHub}
+
+Todo o material está disponível publicamente em \githuburl: os artigos (parcial e final, fonte
+\LaTeX), a descrição do \textit{dataset} com instruções de obtenção e amostras dos dados
+preparados, os \textit{notebooks} executados (análise exploratória e preparação, classificação e
+recuperação), os módulos Python (\texttt{src/}) com cabeçalho de identificação e histórico de
+alterações, as figuras, as tabelas e as métricas geradas, o \texttt{requirements.txt} com as
+versões e as instruções de execução no \texttt{README.md}.
+
+\bibliographystyle{sbc}
+\bibliography{referencias}
+
+\end{document}

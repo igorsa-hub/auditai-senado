@@ -1,0 +1,9 @@
+,,P@10,P@50,nDCG@10,MAP,MRR
+Violência contra a mulher,BM25 (corpus mascarado),0.98,0.876,0.987,0.617,1.0
+Violência contra a mulher,Densa (E5-small),0.98,0.964,0.983,0.728,1.0
+Violência contra a mulher,Híbrida RRF,0.98,0.98,0.986,0.715,1.0
+Violência contra a mulher,BM25 sem máscara (teto lexical),1.0,0.984,1.0,0.749,1.0
+Meio ambiente,BM25 (corpus mascarado),0.54,0.496,0.55,0.273,0.733
+Meio ambiente,Densa (E5-small),0.98,0.712,0.984,0.43,1.0
+Meio ambiente,Híbrida RRF,0.82,0.628,0.857,0.382,1.0
+Meio ambiente,BM25 sem máscara (teto lexical),0.96,0.924,0.942,0.548,0.9

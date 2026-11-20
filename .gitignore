@@ -1,0 +1,16 @@
+file.zip
+*.zip
+data/raw/fsdb_*.json
+data/raw/*.json.gz
+data/processed/
+__pycache__/
+.ipynb_checkpoints/
+data/cache/
+artigo/latex/*.aux
+artigo/latex/*.log
+artigo/latex/*.bbl
+artigo/latex/*.blg
+artigo/latex/*.out
+artigo/latex/*.toc
+artigo/latex/artigo_final.pdf
+artigo/latex/artigo_parcial.pdf

@@ -1,9 +1,19 @@
-# AuditAI Senado - dependências da etapa N1 (análise exploratória e preparação)
-# Versões usadas na execução registrada no notebook (Python 3.11)
-pandas==3.0.2
-pyarrow==25.0.1
-numpy==2.4.4
-matplotlib==3.10.9
-ijson==3.5.1
-nltk==3.10.3
+# AuditAI Senado - dependências (N1: análise exploratória e preparação; N2: experimentos)
+# N1 foi executada com Python 3.11; os experimentos N2 foram executados com Python 3.13.3 (Windows)
+pandas==3.0.6
+pyarrow==26.0.1
+numpy==2.5.3
+scipy==1.18.1
+matplotlib==3.11.2
+ijson==3.6.0
+nltk==3.10.4
 jupyter==1.1.1
+nbconvert==7.17.2
+nbformat==5.11.1
+# N2 - classificação (Experimento 1) e recuperação (Experimento 2)
+scikit-learn==1.9.1
+joblib==1.6.0
+rank-bm25==0.2.2
+sentence-transformers==6.3.0
+# PyTorch (CPU): pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0

@@ -1,0 +1,32 @@
+{
+  "Violência contra a mulher": {
+    "n_amostra": 6872,
+    "n_positivos": 1718,
+    "n_teste": 1364,
+    "melhor_modelo_cv": "Regressão Logística",
+    "melhor_params": "{'clf__C': 1, 'selecao__k': 5000}",
+    "cv_f1_melhor": 0.8296789525057362,
+    "teste_melhor": {
+      "f1": 0.8299,
+      "precisao": 0.7683,
+      "revocacao": 0.9024,
+      "auc": 0.9654,
+      "acuracia": 0.9084
+    }
+  },
+  "Meio ambiente": {
+    "n_amostra": 12000,
+    "n_positivos": 3000,
+    "n_teste": 2415,
+    "melhor_modelo_cv": "Regressão Logística",
+    "melhor_params": "{'clf__C': 1, 'selecao__k': 5000}",
+    "cv_f1_melhor": 0.693431000908904,
+    "teste_melhor": {
+      "f1": 0.7073,
+      "precisao": 0.6384,
+      "revocacao": 0.7928,
+      "auc": 0.9088,
+      "acuracia": 0.8348
+    }
+  }
+}
